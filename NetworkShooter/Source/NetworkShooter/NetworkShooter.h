@@ -3,7 +3,7 @@
 #ifndef __NETWORKSHOOTER_H__
 #define __NETWORKSHOOTER_H__
 
-#include "EngineMinimal.h"
+#include "Engine.h"
 
 
 #endif

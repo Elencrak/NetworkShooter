@@ -112,11 +112,7 @@ void ANetworkShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
-	//InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &ANetworkShooterCharacter::TouchStarted);
-	if (EnableTouchscreenMovement(PlayerInputComponent) == false)
-	{
-		PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ANetworkShooterCharacter::OnFire);
-	}
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ANetworkShooterCharacter::OnFire);
 
 	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &ANetworkShooterCharacter::OnResetVR);
 
@@ -134,30 +130,6 @@ void ANetworkShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 
 void ANetworkShooterCharacter::OnFire()
 {
-	// try and fire a projectile
-	if (ProjectileClass != NULL)
-	{
-		UWorld* const World = GetWorld();
-		if (World != NULL)
-		{
-			if (bUsingMotionControllers)
-			{
-				const FRotator SpawnRotation = VR_MuzzleLocation->GetComponentRotation();
-				const FVector SpawnLocation = VR_MuzzleLocation->GetComponentLocation();
-				World->SpawnActor<ANetworkShooterProjectile>(ProjectileClass, SpawnLocation, SpawnRotation);
-			}
-			else
-			{
-				const FRotator SpawnRotation = GetControlRotation();
-				// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
-				const FVector SpawnLocation = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + SpawnRotation.RotateVector(GunOffset);
-
-				// spawn the projectile at the muzzle
-				World->SpawnActor<ANetworkShooterProjectile>(ProjectileClass, SpawnLocation, SpawnRotation);
-			}
-		}
-	}
-
 	// try and play the sound if specified
 	if (FireSound != NULL)
 	{
@@ -179,66 +151,6 @@ void ANetworkShooterCharacter::OnFire()
 void ANetworkShooterCharacter::OnResetVR()
 {
 	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
-}
-
-void ANetworkShooterCharacter::BeginTouch(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	if (TouchItem.bIsPressed == true)
-	{
-		return;
-	}
-	TouchItem.bIsPressed = true;
-	TouchItem.FingerIndex = FingerIndex;
-	TouchItem.Location = Location;
-	TouchItem.bMoved = false;
-}
-
-void ANetworkShooterCharacter::EndTouch(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	if (TouchItem.bIsPressed == false)
-	{
-		return;
-	}
-	if ((FingerIndex == TouchItem.FingerIndex) && (TouchItem.bMoved == false))
-	{
-		OnFire();
-	}
-	TouchItem.bIsPressed = false;
-}
-
-void ANetworkShooterCharacter::TouchUpdate(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	if ((TouchItem.bIsPressed == true) && (TouchItem.FingerIndex == FingerIndex))
-	{
-		if (TouchItem.bIsPressed)
-		{
-			if (GetWorld() != nullptr)
-			{
-				UGameViewportClient* ViewportClient = GetWorld()->GetGameViewport();
-				if (ViewportClient != nullptr)
-				{
-					FVector MoveDelta = Location - TouchItem.Location;
-					FVector2D ScreenSize;
-					ViewportClient->GetViewportSize(ScreenSize);
-					FVector2D ScaledDelta = FVector2D(MoveDelta.X, MoveDelta.Y) / ScreenSize;
-					if (FMath::Abs(ScaledDelta.X) >= 4.0 / ScreenSize.X)
-					{
-						TouchItem.bMoved = true;
-						float Value = ScaledDelta.X * BaseTurnRate;
-						AddControllerYawInput(Value);
-					}
-					if (FMath::Abs(ScaledDelta.Y) >= 4.0 / ScreenSize.Y)
-					{
-						TouchItem.bMoved = true;
-						float Value = ScaledDelta.Y * BaseTurnRate;
-						AddControllerPitchInput(Value);
-					}
-					TouchItem.Location = Location;
-				}
-				TouchItem.Location = Location;
-			}
-		}
-	}
 }
 
 void ANetworkShooterCharacter::MoveForward(float Value)
@@ -269,17 +181,4 @@ void ANetworkShooterCharacter::LookUpAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
-}
-
-bool ANetworkShooterCharacter::EnableTouchscreenMovement(class UInputComponent* PlayerInputComponent)
-{
-	bool bResult = false;
-	if (FPlatformMisc::GetUseVirtualJoysticks() || GetDefault<UInputSettings>()->bUseMouseForTouch)
-	{
-		bResult = true;
-		PlayerInputComponent->BindTouch(EInputEvent::IE_Pressed, this, &ANetworkShooterCharacter::BeginTouch);
-		PlayerInputComponent->BindTouch(EInputEvent::IE_Released, this, &ANetworkShooterCharacter::EndTouch);
-		PlayerInputComponent->BindTouch(EInputEvent::IE_Repeat, this, &ANetworkShooterCharacter::TouchUpdate);
-	}
-	return bResult;
 }

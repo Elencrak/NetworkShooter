@@ -3,6 +3,14 @@
 #include "GameFramework/GameMode.h"
 #include "NetworkShooterGameMode.generated.h"
 
+UENUM(BlueprintType)
+enum class ETeam : uint8
+{
+	BLUE_TEAM,
+	RED_TEAM
+};
+
+
 UCLASS(minimalapi)
 class ANetworkShooterGameMode : public AGameMode
 {
