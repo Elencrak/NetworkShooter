@@ -50,9 +50,27 @@ ANetworkShooterCharacter::ANetworkShooterCharacter()
 	FP_MuzzleLocation->SetRelativeLocation(FVector(0.2f, 48.4f, -10.6f));
 
 	//Create a gun mesh component
-	/*TP_Gun = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("TP_Gun"));
+	TP_Gun = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("TP_Gun"));
 	TP_Gun->SetOwnerNoSee(true);
-	TP_Gun->SetupAttachment();*/
+	// original code TP_Gun->AttachTo(GetMesh(), TEXT("hand_rSocket"), EAttachLocation::SnapToTargetIncludingScale, true);
+	TP_Gun->SetupAttachment(GetMesh(), TEXT("hand_rSocket"));
+
+	//Create particles for 3rd personne shooter
+	TP_GunShotParticle = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("TP_ParticleSystem"));
+	TP_GunShotParticle->bAutoActivate = false;
+	TP_GunShotParticle->SetupAttachment(TP_Gun);
+	TP_GunShotParticle->SetOwnerNoSee(true);
+
+	//Create particle for 1rt person shooter
+	FP_GunShotParticle = CreateDefaultSubobject<UParticleSystemComponent>("FP_ParticleSystem");
+	FP_GunShotParticle->bAutoActivate = false;
+	FP_GunShotParticle->SetupAttachment(TP_Gun);
+	FP_GunShotParticle->SetOnlyOwnerSee(true);	
+
+	// Create Bullet Particle shared by the 3rd en 1rt player
+	BulletParticle = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("BulletSysTp"));
+	BulletParticle->bAutoActivate = false;
+	BulletParticle->SetupAttachment(FirstPersonCameraComponent);
 
 	// Uncomment the following line to turn motion controllers on by default:
 	//bUsingMotionControllers = true;
