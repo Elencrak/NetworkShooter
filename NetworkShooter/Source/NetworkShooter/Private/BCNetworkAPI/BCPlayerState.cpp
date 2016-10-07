@@ -1,0 +1,22 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#include "NetworkShooter.h"
+#include "BCPlayerState.h"
+
+
+ABCPlayerState::ABCPlayerState()
+	:Super()
+{
+	health = 100.0f;
+	Deaths = 0;
+	Team = ETeam::BLUE_TEAM;
+}
+
+void ABCPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const 
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ABCPlayerState,health);
+	DOREPLIFETIME(ABCPlayerState, Deaths);
+	DOREPLIFETIME(ABCPlayerState, Team);
+}
