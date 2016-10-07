@@ -24,9 +24,12 @@ public:
 	UPROPERTY(Replicated)
 	float health;
 
+	// Number of player was death
 	UPROPERTY(Replicated)
-	uint8 Deaths;
+	uint8 deaths;
 
+	// Team of the state set by default to red
 	UPROPERTY(Replicated)
-	ETeam Team;
+	ETeam team;
+
 };

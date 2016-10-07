@@ -5,7 +5,8 @@
 #include "NetworkShooterProjectile.h"
 #include "Animation/AnimInstance.h"
 #include "GameFramework/InputSettings.h"
-#include "Kismet/HeadMountedDisplayFunctionLibrary.h"
+#include "Net/UnrealNetwork.h"
+#include "BCNetworkAPI/BCPlayerState.h"
 #include "MotionControllerComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
@@ -81,6 +82,11 @@ void ANetworkShooterCharacter::BeginPlay()
 	// Call the base class  
 	Super::BeginPlay();
 
+	if (Role != ROLE_Authority)
+	{
+		SetTeam(currentTeam);
+	}
+
 	//Attach gun mesh component to Skeleton, doing it here because the skeleton is not yet created in the constructor
 	FP_Gun->AttachToComponent(FP_Mesh, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
 
@@ -93,6 +99,11 @@ void ANetworkShooterCharacter::BeginPlay()
 	{
 		FP_Mesh->SetHiddenInGame(false, true);
 	}
+}
+
+void ANetworkShooterCharacter::PossessedBy(AController* newController)
+{
+	Super::PossessedBy(newController);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -108,8 +119,6 @@ void ANetworkShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ANetworkShooterCharacter::OnFire);
 
-	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &ANetworkShooterCharacter::OnResetVR);
-
 	PlayerInputComponent->BindAxis("MoveForward", this, &ANetworkShooterCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ANetworkShooterCharacter::MoveRight);
 
@@ -120,6 +129,19 @@ void ANetworkShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 	PlayerInputComponent->BindAxis("TurnRate", this, &ANetworkShooterCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &ANetworkShooterCharacter::LookUpAtRate);
+}
+
+void ANetworkShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ANetworkShooterCharacter, currentTeam);
+}
+
+float ANetworkShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const&
+	DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	return 0.f;
 }
 
 void ANetworkShooterCharacter::OnFire()
@@ -140,11 +162,6 @@ void ANetworkShooterCharacter::OnFire()
 			AnimInstance->Montage_Play(FP_FireAnimaiton, 1.f);
 		}
 	}
-}
-
-void ANetworkShooterCharacter::OnResetVR()
-{
-	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
 }
 
 void ANetworkShooterCharacter::MoveForward(float Value)
@@ -175,4 +192,47 @@ void ANetworkShooterCharacter::LookUpAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+}
+
+void ANetworkShooterCharacter::Fire(const FVector pos, FVector dir)
+{
+
+}
+
+void ANetworkShooterCharacter::SetTeam_Implementation(ETeam newTeam) 
+{
+	FLinearColor outColour;
+	if (newTeam == ETeam::BLUE_TEAM) 
+	{
+		outColour = FLinearColor(0.0f,0.0f,0.5f);
+	}
+	else
+	{
+		outColour = FLinearColor(0.5f, 0.0f, 0.0f);
+	}
+
+	if (DynamicMat == nullptr)
+	{
+		DynamicMat = UMaterialInstanceDynamic::Create(GetMesh()->GetMaterial(0), this);
+
+		DynamicMat->SetVectorParameterValue(TEXT("BodyColor"), outColour);
+
+		GetMesh()->SetMaterial(0, DynamicMat);
+		FP_Mesh->SetMaterial(0, DynamicMat);
+	}
+}
+
+class ABCPlayerState* ANetworkShooterCharacter::GetABCPlayerState()
+{
+	return playerState;
+}
+
+void ANetworkShooterCharacter::SetABCPlayerState(class ABCPlayerState* newPlayerState)
+{
+	playerState = newPlayerState;
+}
+
+void ANetworkShooterCharacter::Respawn()
+{
+
 }
