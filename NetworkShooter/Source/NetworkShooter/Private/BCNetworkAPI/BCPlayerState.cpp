@@ -16,7 +16,7 @@ void ABCPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(ABCPlayerState,health);
+	DOREPLIFETIME(ABCPlayerState, health);
 	DOREPLIFETIME(ABCPlayerState, deaths);
 	DOREPLIFETIME(ABCPlayerState, team);
 }

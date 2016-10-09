@@ -104,6 +104,15 @@ void ANetworkShooterCharacter::BeginPlay()
 void ANetworkShooterCharacter::PossessedBy(AController* newController)
 {
 	Super::PossessedBy(newController);
+
+	NSPlayerState = Cast<ABCPlayerState>(PlayerState);
+
+	// Put in the method all initialize data when the pawn was possessed
+	// In network most of data set in player state but not all
+	if (Role == ROLE_Authority && NSPlayerState != nullptr) 
+	{
+		NSPlayerState->health = 100.f;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -138,20 +147,55 @@ void ANetworkShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME(ANetworkShooterCharacter, currentTeam);
 }
 
-float ANetworkShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const&
-	DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+float ANetworkShooterCharacter::TakeDamage(float damage, struct FDamageEvent const&
+	damageEvent, AController* eventInstigator, AActor* damageCauser)
 {
+
+	Super::TakeDamage(damage, damageEvent, eventInstigator, damageCauser);
+
+	if (Role == ROLE_Authority && damageCauser != this && NSPlayerState->health > 0)
+	{
+		NSPlayerState->health -= damage;
+		PlayPain();
+
+		if (NSPlayerState <= 0)
+		{
+			// Increment the number of death
+			NSPlayerState->deaths++;
+
+			// Send to all entities to execute the ragdool animation
+			MultiCastRagdool();
+
+			ANetworkShooterCharacter* otherActor = Cast<ANetworkShooterCharacter>(damageCauser);
+
+			if (otherActor)
+			{
+				otherActor->NSPlayerState->Score += 1;
+			}
+
+			// For make a timer use this part of code
+			// I need timerhandle
+			//After 3 seconds respawn
+			FTimerHandle timerHandle;
+
+			// With declare timer like this i can call back a method after the timer and
+			// I need for that a pointer of function, float, object create action
+			// This timer is added in delegate TimerManager execution.
+			GetWorldTimerManager().SetTimer(
+				timerHandle,
+				this,
+				& ANetworkShooterCharacter::Respawn,
+				3.F,
+				false);
+
+		}
+		return damage;
+	}
 	return 0.f;
 }
 
 void ANetworkShooterCharacter::OnFire()
 {
-	// try and play the sound if specified
-	if (FireSound != NULL)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
-	}
-
 	// try and play a firing animation if specified
 	if (FP_FireAnimaiton != NULL)
 	{
@@ -162,6 +206,31 @@ void ANetworkShooterCharacter::OnFire()
 			AnimInstance->Montage_Play(FP_FireAnimaiton, 1.f);
 		}
 	}
+
+	//Play th FP particle effect specified
+	if (FP_GunShotParticle != nullptr)
+	{
+		FP_GunShotParticle->Activate(true);
+	}
+
+	//Implementation the shooting paramter must be send to server
+	FVector mousePosition;
+	FVector mouseDirection;
+
+	APlayerController* controller = Cast<APlayerController>(GetController());
+
+	FVector2D screenSize = GEngine->GameViewport->Viewport->GetSizeXY();
+
+	controller->DeprojectScreenPositionToWorld(
+		screenSize.X / 2.f, 
+		screenSize.Y / 2.f,
+		mousePosition,
+		mouseDirection);
+
+	mouseDirection *= 10000000.f;
+
+	// Send to server for execute action
+	ServerFire(mousePosition, mouseDirection);
 }
 
 void ANetworkShooterCharacter::MoveForward(float Value)
@@ -194,17 +263,130 @@ void ANetworkShooterCharacter::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
+/* Only executer on server */
 void ANetworkShooterCharacter::Fire(const FVector pos, FVector dir)
 {
+	//Set object param
+	FCollisionObjectQueryParams collisionObjectQuery;
+	collisionObjectQuery.AddObjectTypesToQuery(ECC_EngineTraceChannel1);
 
+	// Set the collision param
+	FCollisionQueryParams collisionQuery;
+	collisionQuery.AddIgnoredActor(this);
+
+	// stock the res in FHitResult
+	FHitResult hitRes;
+	//Draw ray cast
+	GetWorld()->LineTraceSingleByObjectType(hitRes, pos, dir, collisionObjectQuery, collisionQuery);
+
+	//Debug ray cast
+	DrawDebugLine(GetWorld(), pos, dir, FColor::Red, true, 1.f, 0, 3.f);
+
+	if (hitRes.bBlockingHit)
+	{
+		ANetworkShooterCharacter* otherChar = Cast<ANetworkShooterCharacter>(hitRes.GetActor());
+
+		if (otherChar != nullptr && 
+			otherChar->GetABCPlayerState()->team != this->GetABCPlayerState()->team) 
+		{
+			FDamageEvent damageEvent = FDamageEvent(UDamageType::StaticClass());
+			otherChar->TakeDamage(10.f, damageEvent, this->GetController(), this);
+
+			APlayerController* thisPlayerController = Cast<APlayerController>(GetController());
+
+			// Be careful if you want to launch feed back you must pass by player controller
+			// and select your feedback to launch
+			thisPlayerController->ClientPlayForceFeedback(HitSuccessFeedback, false, NAME_None);
+		}
+	}
 }
 
-void ANetworkShooterCharacter::SetTeam_Implementation(ETeam newTeam) 
+/***                                   Private Validate methode                                **/
+
+// Check if the vector send in parameter is not null.
+bool ANetworkShooterCharacter::ServerFire_Validate(const FVector pos, const FVector dir) 
+{
+
+	if (pos != FVector(ForceInit) && dir != FVector(ForceInit))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+/***                                  Private Implementation methode                                **/
+
+// Implement the method lauched by server
+void ANetworkShooterCharacter::ServerFire_Implementation(const FVector pos, const FVector dir)
+{
+	// Launch fire
+	Fire(pos, dir);
+
+	//Inform all other player to launch our shootEffect
+	MultiCastShootEffects();
+}
+
+void ANetworkShooterCharacter::MultiCastShootEffects_Implementation()
+{
+	//Ty and play a firing animation specified
+	if (TP_FireAnimation != NULL) 
+	{
+		// Get the animation object for the arms mesh
+		UAnimInstance* animInstance = GetMesh()->GetAnimInstance();
+		if(animInstance != NULL)
+		{
+			animInstance->Montage_Play(TP_FireAnimation);
+		}
+	}
+
+	//Try and play the sound if specified
+	if (FireSound != NULL)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
+	}
+
+	//Try to launch 3rd person particle
+	if (TP_GunShotParticle != NULL)
+	{
+		TP_GunShotParticle->Activate(true);
+	}
+
+	if (BulletParticle != NULL)
+	{
+		UGameplayStatics::SpawnEmitterAtLocation(this, 
+			BulletParticle->Template, 
+			BulletParticle->GetComponentLocation(), 
+			BulletParticle->GetComponentRotation());
+	}
+}
+
+void ANetworkShooterCharacter::MultiCastRagdool_Implementation()
+{
+	// Todo go back here for how does ragdool work.
+	GetMesh()->SetPhysicsBlendWeight(1.f);
+	GetMesh()->SetSimulatePhysics(true);
+	GetMesh()->SetCollisionProfileName("Ragdoll");
+}
+
+void ANetworkShooterCharacter::PlayPain_Implementation() 
+{
+	if (Role == ROLE_AutonomousProxy)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, PainSound, GetActorLocation());
+	}
+}
+
+/***                                  Public Implementation methode                                **/
+
+void ANetworkShooterCharacter::SetTeam_Implementation(ETeam newTeam)
 {
 	FLinearColor outColour;
-	if (newTeam == ETeam::BLUE_TEAM) 
+	if (newTeam == ETeam::BLUE_TEAM)
 	{
-		outColour = FLinearColor(0.0f,0.0f,0.5f);
+		outColour = FLinearColor(0.0f, 0.0f, 0.5f);
 	}
 	else
 	{
@@ -222,17 +404,37 @@ void ANetworkShooterCharacter::SetTeam_Implementation(ETeam newTeam)
 	}
 }
 
+
 class ABCPlayerState* ANetworkShooterCharacter::GetABCPlayerState()
 {
-	return playerState;
+	if (NSPlayerState)
+	{
+		return NSPlayerState;
+	}
+	else
+	{
+		NSPlayerState = Cast<ABCPlayerState>(PlayerState);
+		return NSPlayerState;
+	}
 }
 
 void ANetworkShooterCharacter::SetABCPlayerState(class ABCPlayerState* newPlayerState)
 {
-	playerState = newPlayerState;
+	// Ensure ps is vali and only set on server
+	if (newPlayerState && Role == ROLE_Authority)
+	{
+		NSPlayerState = newPlayerState;
+		PlayerState = newPlayerState;
+	}
 }
 
 void ANetworkShooterCharacter::Respawn()
 {
-
+	if (Role == ROLE_Authority)
+	{
+		// Get Location from game mode
+		NSPlayerState->health = 100.f;
+		/*Cast<ABCPlayerState>(GetWorld()->GetAuthGameMode())->Respawn(this);*/
+		Destroy(true, true);
+	}
 }

@@ -137,7 +137,7 @@ protected:
 	/** 
 		Stock the player state
 	*/
-	class ABCPlayerState* playerState;
+	class ABCPlayerState* NSPlayerState;
 
 public:
 	/** Returns FP_Mesh subobject **/
@@ -152,19 +152,23 @@ private:
 		Function called by client*/
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerFire(const FVector pos, const FVector dir);
+	bool ServerFire_Validate(const FVector pos, const FVector dir);
+	void ServerFire_Implementation(const FVector pos, const FVector dir);
 
 	/** Multicast so all clients run shoot effects
 		Call on all network entities
 	*/
 	UFUNCTION(NetMultiCast, unreliable)
 	void MultiCastShootEffects();
-
+	void MultiCastShootEffects_Implementation();
+	
 	/**
 		Called on death for all clients for hilarious death
 		Call on all network entities
 	*/
 	UFUNCTION(NetMultiCast, unreliable)
 	void MultiCastRagdool();
+	void MultiCastRagdool_Implementation();
 
 	/**
 		Play pain on owning client when hit
@@ -172,11 +176,13 @@ private:
 	*/
 	UFUNCTION(Client, Reliable)
 	void PlayPain();
+	void PlayPain_Implementation();
 
 public:
 	// Set's team colour
 	UFUNCTION(NetMultiCast, Reliable)
 	void SetTeam(ETeam newTeam);
+	void SetTeam_Implementation(ETeam newTeam);
 
 	class ABCPlayerState* GetABCPlayerState();
 	void SetABCPlayerState(class ABCPlayerState* newPlayerState);
