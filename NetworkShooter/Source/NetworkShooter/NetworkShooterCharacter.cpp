@@ -56,6 +56,8 @@ ANetworkShooterCharacter::ANetworkShooterCharacter()
 	// original code TP_Gun->AttachTo(GetMesh(), TEXT("hand_rSocket"), EAttachLocation::SnapToTargetIncludingScale, true);
 	TP_Gun->SetupAttachment(GetMesh(), TEXT("hand_rSocket"));
 
+	GetMesh()->SetOwnerNoSee(true);
+
 	//Create particles for 3rd personne shooter
 	TP_GunShotParticle = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("TP_ParticleSystem"));
 	TP_GunShotParticle->bAutoActivate = false;
@@ -104,7 +106,7 @@ void ANetworkShooterCharacter::BeginPlay()
 void ANetworkShooterCharacter::PossessedBy(AController* newController)
 {
 	Super::PossessedBy(newController);
-
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("PossessedBy"));
 	NSPlayerState = Cast<ABCPlayerState>(PlayerState);
 
 	// Put in the method all initialize data when the pawn was possessed
@@ -153,12 +155,13 @@ float ANetworkShooterCharacter::TakeDamage(float damage, struct FDamageEvent con
 
 	Super::TakeDamage(damage, damageEvent, eventInstigator, damageCauser);
 
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("%f"), damage));
 	if (Role == ROLE_Authority && damageCauser != this && NSPlayerState->health > 0)
 	{
 		NSPlayerState->health -= damage;
 		PlayPain();
 
-		if (NSPlayerState <= 0)
+		if (NSPlayerState->health <= 0)
 		{
 			// Increment the number of death
 			NSPlayerState->deaths++;
@@ -268,7 +271,7 @@ void ANetworkShooterCharacter::Fire(const FVector pos, FVector dir)
 {
 	//Set object param
 	FCollisionObjectQueryParams collisionObjectQuery;
-	collisionObjectQuery.AddObjectTypesToQuery(ECC_EngineTraceChannel1);
+	collisionObjectQuery.AddObjectTypesToQuery(ECC_GameTraceChannel1);
 
 	// Set the collision param
 	FCollisionQueryParams collisionQuery;
@@ -281,13 +284,15 @@ void ANetworkShooterCharacter::Fire(const FVector pos, FVector dir)
 
 	//Debug ray cast
 	DrawDebugLine(GetWorld(), pos, dir, FColor::Red, true, 1.f, 0, 3.f);
-
 	if (hitRes.bBlockingHit)
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("FireHit"));
+		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("FireHit"));
 		ANetworkShooterCharacter* otherChar = Cast<ANetworkShooterCharacter>(hitRes.GetActor());
 
-		if (otherChar != nullptr && 
-			otherChar->GetABCPlayerState()->team != this->GetABCPlayerState()->team) 
+		/*if(otherChar->GetABCPlayerState() != nullptr)
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("OtherCharacter is not null"));*/
+		if (otherChar != nullptr /*&& otherChar->GetABCPlayerState()->team != this->GetABCPlayerState()->team*/) 
 		{
 			FDamageEvent damageEvent = FDamageEvent(UDamageType::StaticClass());
 			otherChar->TakeDamage(10.f, damageEvent, this->GetController(), this);
@@ -309,6 +314,7 @@ bool ANetworkShooterCharacter::ServerFire_Validate(const FVector pos, const FVec
 
 	if (pos != FVector(ForceInit) && dir != FVector(ForceInit))
 	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("ValidateTrue"));
 		return true;
 	}
 	else
@@ -322,6 +328,7 @@ bool ANetworkShooterCharacter::ServerFire_Validate(const FVector pos, const FVec
 // Implement the method lauched by server
 void ANetworkShooterCharacter::ServerFire_Implementation(const FVector pos, const FVector dir)
 {
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("ServerFire"));
 	// Launch fire
 	Fire(pos, dir);
 
@@ -414,6 +421,8 @@ class ABCPlayerState* ANetworkShooterCharacter::GetABCPlayerState()
 	else
 	{
 		NSPlayerState = Cast<ABCPlayerState>(PlayerState);
+		if (PlayerState == nullptr)
+			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("PlayerState is null"));
 		return NSPlayerState;
 	}
 }
