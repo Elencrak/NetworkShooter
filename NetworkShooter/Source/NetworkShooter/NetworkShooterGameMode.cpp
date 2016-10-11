@@ -125,3 +125,68 @@ void ANetworkShooterGameMode::PostLogin(APlayerController* newPlayer)
 		Spawn(teamLess);
 	}
 }
+
+void ANetworkShooterGameMode::Respawn(class ANetworkShooterCharacter* charaterToRespawn)
+{
+	if (Role == ROLE_Authority)
+	{
+		AController* thisPC = charaterToRespawn->GetController();
+		charaterToRespawn->DetachFromControllerPendingDestroy();
+
+		ANetworkShooterCharacter* newChara = Cast<ANetworkShooterCharacter>(
+			GetWorld()->SpawnActor(DefaultPawnClass));
+
+		if (newChara)
+		{
+			thisPC->Possess(newChara);
+			ABCPlayerState* thisPS = Cast<ABCPlayerState>(newChara->GetController()->PlayerState);
+
+			newChara->currentTeam = thisPS->team;
+			newChara->SetABCPlayerState(thisPS);
+
+			Spawn(newChara);
+
+			newChara->SetTeam(newChara->GetABCPlayerState()->team);
+		}
+	}
+}
+
+void ANetworkShooterGameMode::Spawn(class ANetworkShooterCharacter* character)
+{
+	//Find spawn point that is not blocked
+	AWHSpawnPoint* thisPawn = nullptr;
+	TArray<class AWHSpawnPoint*>* targetTeam = nullptr;
+
+	if (character->currentTeam == ETeam::BLUE_TEAM)
+	{
+		targetTeam = &blueSpawnPoint;
+	}
+	else
+	{
+		targetTeam = &redSpawnPoint;
+	}
+
+	for (auto spawn : (*targetTeam))
+	{
+		if (!spawn->GetBlocked())
+		{
+			// Remove from queue location
+			if (toBeSpawned.Find(character) != INDEX_NONE)
+			{
+				toBeSpawned.Remove(character);
+			}
+
+			//Otherwise set actor location
+			character->SetActorLocation(spawn->GetActorLocation());
+
+			spawn->UpdateOverlaps();
+
+			return;
+		}
+	}
+
+	if (toBeSpawned.Find(character) == INDEX_NONE)
+	{
+		toBeSpawned.Add(character);
+	}
+}

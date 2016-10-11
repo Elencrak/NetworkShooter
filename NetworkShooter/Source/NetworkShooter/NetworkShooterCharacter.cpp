@@ -280,19 +280,23 @@ void ANetworkShooterCharacter::Fire(const FVector pos, FVector dir)
 	// stock the res in FHitResult
 	FHitResult hitRes;
 	//Draw ray cast
-	GetWorld()->LineTraceSingleByObjectType(hitRes, pos, dir, collisionObjectQuery, collisionQuery);
+	GetWorld()->LineTraceSingleByObjectType(hitRes,
+		pos, 
+		dir, 
+		collisionObjectQuery, 
+		collisionQuery);
 
 	//Debug ray cast
 	DrawDebugLine(GetWorld(), pos, dir, FColor::Red, true, 1.f, 0, 3.f);
+
 	if (hitRes.bBlockingHit)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("FireHit"));
-		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("FireHit"));
 		ANetworkShooterCharacter* otherChar = Cast<ANetworkShooterCharacter>(hitRes.GetActor());
 
 		/*if(otherChar->GetABCPlayerState() != nullptr)
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("OtherCharacter is not null"));*/
-		if (otherChar != nullptr /*&& otherChar->GetABCPlayerState()->team != this->GetABCPlayerState()->team*/) 
+		if (otherChar != nullptr && otherChar->GetABCPlayerState()->team != this->GetABCPlayerState()->team) 
 		{
 			FDamageEvent damageEvent = FDamageEvent(UDamageType::StaticClass());
 			otherChar->TakeDamage(10.f, damageEvent, this->GetController(), this);
@@ -443,7 +447,7 @@ void ANetworkShooterCharacter::Respawn()
 	{
 		// Get Location from game mode
 		NSPlayerState->health = 100.f;
-		/*Cast<ABCPlayerState>(GetWorld()->GetAuthGameMode())->Respawn(this);*/
+		Cast<ANetworkShooterGameMode>(GetWorld()->GetAuthGameMode())->Respawn(this);
 		Destroy(true, true);
 	}
 }

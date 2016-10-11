@@ -32,13 +32,11 @@ public:
 	void ActorEndOverlaps(AActor* overlappedActor, AActor* paramActor);
 
 	bool GetBlocked()
-	{
-		TArray<AActor*> overlapp;
-		GetOverlappingActors(overlapp);
-		return overlapp.Num() != 0;
+	{		
+		return overlappingActor.Num() != 0;
 	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	ETeam team;
 
 private:
