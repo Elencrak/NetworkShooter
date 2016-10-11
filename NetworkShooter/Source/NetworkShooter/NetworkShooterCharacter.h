@@ -187,5 +187,7 @@ public:
 	class ABCPlayerState* GetABCPlayerState();
 	void SetABCPlayerState(class ABCPlayerState* newPlayerState);
 	void Respawn();
+
+	void Desactivate(UParticleSystemComponent* test);
 };
 

@@ -1,6 +1,10 @@
 // Copyright 1998-2016 Epic Games, Inc. All Rights Reserved.
 #pragma once 
 #include "GameFramework/HUD.h"
+#include "NetworkShooterGameMode.h"
+#include "NetworkShooterCharacter.h"
+#include "BCNetworkAPI/BCGameState.h"
+#include "BCNetworkAPI/BCPlayerState.h"
 #include "NetworkShooterHUD.generated.h"
 
 UCLASS()

@@ -362,16 +362,21 @@ void ANetworkShooterCharacter::MultiCastShootEffects_Implementation()
 	//Try to launch 3rd person particle
 	if (TP_GunShotParticle != NULL)
 	{
-		TP_GunShotParticle->Activate(true);
+		TP_GunShotParticle->bAutoDestroy = true;
 	}
 
-	if (BulletParticle != NULL)
+	/*if (BulletParticle != NULL)
 	{
-		UGameplayStatics::SpawnEmitterAtLocation(this, 
+		UParticleSystemComponent* tempParticle = UGameplayStatics::SpawnEmitterAtLocation(this, 
 			BulletParticle->Template, 
 			BulletParticle->GetComponentLocation(), 
 			BulletParticle->GetComponentRotation());
-	}
+	}*/
+}
+
+void ANetworkShooterCharacter::Desactivate(UParticleSystemComponent* test)
+{
+	TP_GunShotParticle->DestroyComponent();
 }
 
 void ANetworkShooterCharacter::MultiCastRagdool_Implementation()

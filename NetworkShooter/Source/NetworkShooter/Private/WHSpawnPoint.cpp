@@ -7,15 +7,14 @@
 // Sets default values
 AWHSpawnPoint::AWHSpawnPoint()
 {
-	
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-
-	spawnCapsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Capsule"));	
+	PrimaryActorTick.bCanEverTick = true;	
+	spawnCapsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Capsule"));
 }
 
 void AWHSpawnPoint::OnConstruction(const FTransform& Transform)
 {
+	
 	if (team == ETeam::RED_TEAM) 
 	{
 		spawnCapsule->ShapeColor = FColor(255,0,0);
@@ -31,6 +30,7 @@ void AWHSpawnPoint::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	// Todo replace this capsule by obect made bye graph in bp
 	spawnCapsule->SetCollisionProfileName("OverlapAllDynamic");
 	spawnCapsule->bGenerateOverlapEvents = true;
 	spawnCapsule->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECollisionResponse::ECR_Overlap);

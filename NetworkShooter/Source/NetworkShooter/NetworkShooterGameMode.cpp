@@ -15,7 +15,7 @@ ANetworkShooterGameMode::ANetworkShooterGameMode()
 	: Super()
 {
 	// set default pawn class to our Blueprinted character
-	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnClassFinder(TEXT("/Game/FirstPersonCPP/Blueprints/FirstPersonCharacter"));
+	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnClassFinder(TEXT("/Game/FirstPersonCPP/Blueprints/FirstPersonCharacter_BP"));
 	DefaultPawnClass = PlayerPawnClassFinder.Class;
 	PlayerStateClass = ABCPlayerState::StaticClass();
 
@@ -54,6 +54,7 @@ void ANetworkShooterGameMode::BeginPlay()
 			blueTeam.Add(thisChar);
 			Spawn(thisChar);
 		}
+		Cast<ABCGameState>(GameState)->bInMenu = bInGameMenu;
 	}
 }
 
@@ -83,7 +84,7 @@ void ANetworkShooterGameMode::Tick(float deltaTime)
 		if(thisPlayerController != nullptr && thisPlayerController->IsInputKeyDown(EKeys::R))
 		{ 
 			bInGameMenu = false;
-			GetWorld()->ServerTravel(L"/Game/FirstPersonCPP/Maps/FirstPersonExempleMap?Listen");
+			GetWorld()->ServerTravel("/Game/FirstPersonCPP/Maps/FirstPersonExampleMap?Listen");
 		}
 	}
 }
